@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <link rel="icon" href="data:," />
+    <title>Morning Desk</title>
+    <meta name="description" content="A seated, hands-first morning brief for Meta Quest. Your desk and walls become the dashboard." />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b1424; font-family: Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+      #landing { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
+        background: radial-gradient(ellipse at 30% 20%, #23395c 0%, #0b1424 65%); color: #f2f6fb; }
+      .card { max-width: 560px; width: 100%; }
+      h1 { font-size: 44px; margin: 0 0 8px; letter-spacing: -0.5px; }
+      h1 span { color: #ffb547; }
+      p { color: #c4d0e2; font-size: 18px; line-height: 1.5; margin: 0 0 18px; }
+      #enter { font: 600 20px inherit; font-family: inherit; padding: 16px 28px; border-radius: 14px; border: 0; background: #ffb547; color: #111;
+        cursor: pointer; min-width: 260px; }
+      #enter:disabled { opacity: 0.6; cursor: wait; }
+      #status { font-size: 15px; color: #a7b6cc; margin-top: 14px; }
+      details { margin-top: 22px; color: #c4d0e2; font-size: 15px; }
+      summary { cursor: pointer; }
+      label { display: block; margin: 12px 0 4px; }
+      input, textarea { width: 100%; box-sizing: border-box; font: 15px inherit; font-family: inherit; padding: 8px 10px; border-radius: 8px;
+        border: 1px solid #3a4d6b; background: #101b2d; color: #f2f6fb; }
+      button.small { margin-top: 8px; padding: 8px 14px; border-radius: 8px; border: 1px solid #3a4d6b; background: #1b2a42; color: #f2f6fb; cursor: pointer; }
+      a { color: #ffb547; }
+      #scene-container { position: fixed; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="landing">
+      <div class="card">
+        <h1>Morning <span>Desk</span></h1>
+        <p>Your morning numbers, laid across your real desk and walls. Look, pinch, or ask, and the brief shows you what changed. Seated, no controller.</p>
+        <button id="enter" disabled>Loading today's data…</button>
+        <div id="status">Fetching the U.S. Treasury Daily Treasury Statement…</div>
+        <details>
+          <summary>Make it yours</summary>
+          <label for="tasks">Today's tasks (one per line, up to 5)</label>
+          <textarea id="tasks" rows="4"></textarea>
+          <label for="csv">Chart a public CSV instead (two columns: date, value)</label>
+          <input id="csv" type="url" placeholder="https://example.org/your-data.csv" />
+          <button class="small" id="csv-go">Use this CSV</button>
+        </details>
+        <p style="margin-top:22px;font-size:15px">On Meta Quest, open this page in the Browser. On a computer, the page opens a built-in Quest 3 emulator. <a href="judges.html">Testing guide for judges</a></p>
+      </div>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
