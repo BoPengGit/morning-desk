@@ -67,6 +67,22 @@ export async function enter(page, eye = SEATED_EYE) {
 }
 
 const v3 = (a) => ({ x: a[0], y: a[1], z: a[2] });
+
+/** Waits until a device has reached a position (or orientation): animations run on frame time, which slows under load. */
+async function settle(page, device, pos, quat, timeoutMs = 6000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const t = await rc(page, 'get_transform', { device });
+    const p = t?.position ?? t?.transform?.position;
+    const o = t?.orientation ?? t?.quaternion ?? t?.transform?.orientation;
+    let ok = true;
+    if (pos && p) ok = Math.hypot(p.x - pos[0], p.y - pos[1], p.z - pos[2]) < 0.01;
+    if (quat && o && o.w !== undefined) ok = ok && Math.abs(o.x * quat[0] + o.y * quat[1] + o.z * quat[2] + o.w * quat[3]) > 0.9995;
+    if (!p && !o) return;
+    if (ok) return;
+    await page.waitForTimeout(60);
+  }
+}
 const q4 = (a) => ({ x: a[0], y: a[1], z: a[2], w: a[3] });
 
 /** Turns the head to look at a world point over `ms`. */
@@ -74,7 +90,7 @@ export async function lookAt(page, target, ms = 800) {
   const head = await page.evaluate(() => window.__md.head());
   const q = await page.evaluate(({ head, target }) => window.__md.lookQuat(head, target), { head, target });
   await rc(page, 'animate_to', { device: 'headset', orientation: q4(q), duration: ms / 1000 });
-  await page.waitForTimeout(80);
+  await settle(page, 'headset', null, q);
 }
 
 export async function targetPos(page, id) {
@@ -89,7 +105,7 @@ export async function pinch(page, id, side = 'right', moveMs = 450) {
   const from = [head[0] + (side === 'right' ? 0.16 : -0.16), head[1] - 0.3, head[2] - 0.25];
   const q = await page.evaluate(({ from, pos }) => window.__md.lookQuat(from, pos), { from, pos });
   await rc(page, 'animate_to', { device: `hand-${side}`, position: v3(from), orientation: q4(q), duration: moveMs / 1000 });
-  await page.waitForTimeout(150);
+  await settle(page, `hand-${side}`, from);
   await rc(page, 'select', { device: `hand-${side}`, duration: 0.2 });
   await page.waitForTimeout(250);
 }
@@ -108,8 +124,8 @@ export async function restHands(page, ms = 300) {
   for (const side of ['left', 'right']) {
     await rc(page, 'animate_to', {
       device: `hand-${side}`,
-      position: v3([head[0] + (side === 'right' ? 0.22 : -0.22), head[1] - 0.6, head[2] - 0.2]),
-      orientation: { pitch: -60, yaw: 0, roll: 0 },
+      position: v3([head[0] + (side === 'right' ? 0.2 : -0.2), head[1] - 0.5, head[2] - 0.3]),
+      orientation: { pitch: -35, yaw: 0, roll: 0 },
       duration: ms / 1000,
     });
   }

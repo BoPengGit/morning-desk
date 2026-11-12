@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3, World } from '@iwsdk/core';
+import { Matrix4, Quaternion, SceneUnderstandingSystem, Vector3, World } from '@iwsdk/core';
 import { MdTarget } from './components.js';
 import projectOptions from 'virtual:iwsdk-project';
 import { makeAppSystem, MorningDesk } from './app.js';
@@ -95,6 +95,18 @@ async function start() {
       return out;
     },
     step: () => app.onboardStep,
+    panelsVisible: () => app.panelsVisible(),
+    biggestDropBar: () => app.biggestDropBar(),
+    /** Shows the planes and meshes scene understanding found, as wireframes. */
+    wireframe: (on: boolean) => {
+      const sys = world.getSystem(SceneUnderstandingSystem);
+      if (sys) sys.config.showWireFrame.value = on;
+    },
+    /** Hides or shows the whole brief, for a baseline frame-time run of the emulator alone. */
+    showBrief: (on: boolean) => {
+      app.root.object3D!.visible = on;
+      app.caption.panel.mesh.visible = false;
+    },
   };
 }
 

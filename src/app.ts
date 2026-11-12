@@ -155,7 +155,7 @@ export class MorningDesk {
     }
     const clockPanel = new CanvasPanel(0.13, 0.13, 2600);
     this.clock = { panel: clockPanel, entity: this.target(clockPanel.mesh, 'clock', this.root) };
-    const detailPanel = new CanvasPanel(0.42, 0.3, 2200);
+    const detailPanel = new CanvasPanel(0.34, 0.24, 2600);
     this.detail = { panel: detailPanel, entity: this.entity(detailPanel.mesh, this.root) };
     detailPanel.mesh.visible = false;
 
@@ -752,18 +752,16 @@ export class MorningDesk {
     setWorldPose(o, _p, _q);
   }
 
-  /** Opens a tile's detail card standing on the desk behind the tiles. */
+  /** Opens a tile's detail card on the desk behind the tile row, leaning back like the lectern cards. */
   private placeDetail(): void {
     if (!this.layout || !this.openTile) return;
     const t = this.tiles.get(this.openTile)!.entity.object3D!;
     t.updateWorldMatrix(true, false);
-    const pos = new Vector3().setFromMatrixPosition(t.matrixWorld);
-    const q = new Quaternion().setFromRotationMatrix(t.matrixWorld);
-    const up = new Vector3(0, 1, 0).applyQuaternion(q);
-    const normal = new Vector3(0, 0, 1).applyQuaternion(q);
-    pos.addScaledVector(up, 0.12).addScaledVector(normal, 0.17);
-    const stand = q.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2));
-    setWorldPose(this.detail.panel.mesh, pos, stand);
+    const off = offsetIn(this.layout.table, new Vector3().setFromMatrixPosition(t.matrixWorld));
+    const lean = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (62 * Math.PI) / 180);
+    placeIn(this.layout.table, [off[0], off[1] + 0.27, 0.09], _p, _q);
+    _q.multiply(lean);
+    setWorldPose(this.detail.panel.mesh, _p, _q);
   }
 
   private positionNear(snap: boolean, dt = 0): void {
@@ -1023,6 +1021,49 @@ export class MorningDesk {
     save();
   }
 
+  /** Index of the largest one-day drop among the bars on the chart. */
+  biggestDropBar(): number {
+    const v = this.view.series.values;
+    const { start } = this.window();
+    let best = v.length - 1;
+    let bestD = 0;
+    for (let i = Math.max(1, start); i < v.length; i++) {
+      if (v[i] - v[i - 1] < bestD) {
+        bestD = v[i] - v[i - 1];
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /** For scripted checks: how many drawn panels are on screen now. */
+  panelsVisible(): number {
+    const shown = (o: Object3D | null | undefined) => {
+      let n: Object3D | null | undefined = o;
+      while (n) {
+        if (!n.visible) return false;
+        n = n.parent;
+      }
+      return !!o;
+    };
+    const meshes = [
+      ...[...this.tiles.values()].map((t) => t.panel.mesh),
+      this.clock.panel.mesh,
+      this.detail.panel.mesh,
+      this.chartFlat.mesh,
+      this.chartCurved,
+      this.answer.mesh,
+      this.tasks.panel.mesh,
+      this.question.mesh,
+      this.settings.mesh,
+      this.coach.mesh,
+      this.fps.mesh,
+      ...this.notes.map((n) => n.panel.mesh),
+      ...this.extras.map((x) => x.panel.mesh),
+    ];
+    return meshes.filter((m) => shown(m)).length;
+  }
+
   /** For scripted checks: the Object3D of a target id. */
   findTarget(id: string): Object3D | null {
     const all: Entity[] = [
@@ -1134,7 +1175,9 @@ export function makeAppSystem(app: MorningDesk) {
         }),
         meshes: [...this.queries.meshes.entities].map((e) => ({ obj: e.object3D!, label: (e.getValue(XRMesh, 'semanticLabel') as string) ?? '' })),
       });
+      const t0 = performance.now();
       app.update(delta, det, this.queries.planes.entities.size + this.queries.meshes.entities.size);
+      perf.pending += performance.now() - t0;
     }
   };
 }

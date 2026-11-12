@@ -44,8 +44,9 @@ function setHighlight(obj: Object3D | null | undefined, on: boolean): void {
 }
 
 export const DWELL_SECONDS = 1.4;
-/** Card buttons ask for a longer hold, so a passing glance never asks a question. */
+/** Card buttons and task ticks ask for a longer hold, so a passing glance never changes anything. */
 export const CARD_DWELL_SECONDS = 2.0;
+const isCard = (id: string) => id.startsWith('ask:') || id.startsWith('set:') || id.startsWith('task:') || id === 'mic';
 const RING_SEGMENTS = 64;
 
 export class DwellSystem extends createSystem({
@@ -79,6 +80,12 @@ export class DwellSystem extends createSystem({
   }
 
   update(delta: number): void {
+    const t0 = performance.now();
+    this.step(delta);
+    perf.pending += performance.now() - t0;
+  }
+
+  private step(delta: number): void {
     const head = this.player.head;
     head.getWorldPosition(this.origin);
     head.getWorldDirection(this.dir).negate();
@@ -105,7 +112,7 @@ export class DwellSystem extends createSystem({
       this.fired = false;
     } else if (id && !this.fired) {
       this.held += delta;
-      if (this.held >= (id.startsWith('ask:') || id.startsWith('set:') ? CARD_DWELL_SECONDS : DWELL_SECONDS)) {
+      if (this.held >= (isCard(id) ? CARD_DWELL_SECONDS : DWELL_SECONDS)) {
         this.fired = true;
         bus.fire(id, 'dwell');
       }
@@ -119,7 +126,7 @@ export class DwellSystem extends createSystem({
       this.track.position.copy(p);
       this.ring.lookAt(this.origin);
       this.track.lookAt(this.origin);
-      const need = id.startsWith('ask:') || id.startsWith('set:') ? CARD_DWELL_SECONDS : DWELL_SECONDS;
+      const need = isCard(id) ? CARD_DWELL_SECONDS : DWELL_SECONDS;
       const frac = Math.min(1, (this.held - 0.15) / (need - 0.15));
       this.ring.geometry.setDrawRange(0, Math.ceil(frac * RING_SEGMENTS) * 6);
     }
@@ -138,10 +145,15 @@ function isShown(o: Object3D): boolean {
 /** Rolling frame-time log for the overlay and for measurement. */
 export const perf = {
   frames: new Float32Array(1200),
+  work: new Float32Array(1200),
   count: 0,
   head: 0,
+  /** Milliseconds Morning Desk's own systems spent in the current frame. */
+  pending: 0,
   push(ms: number) {
     this.frames[this.head] = ms;
+    this.work[this.head] = this.pending;
+    this.pending = 0;
     this.head = (this.head + 1) % this.frames.length;
     this.count = Math.min(this.count + 1, this.frames.length);
   },
@@ -150,13 +162,21 @@ export const perf = {
     this.head = 0;
   },
   /** fps median, fps at the 1% low (99th percentile frame time), frames counted. */
-  stats(): { median: number; low1: number; frames: number; p99ms: number } {
+  stats(): { median: number; low1: number; frames: number; p99ms: number; workMedianMs: number; workP99Ms: number } {
     const n = this.count;
-    if (n < 10) return { median: 0, low1: 0, frames: n, p99ms: 0 };
+    if (n < 10) return { median: 0, low1: 0, frames: n, p99ms: 0, workMedianMs: 0, workP99Ms: 0 };
     const arr = Array.from(this.frames.subarray(0, n)).sort((a, b) => a - b);
+    const work = Array.from(this.work.subarray(0, n)).sort((a, b) => a - b);
     const med = arr[Math.floor(n / 2)];
     const p99 = arr[Math.min(n - 1, Math.floor(n * 0.99))];
-    return { median: 1000 / med, low1: 1000 / p99, frames: n, p99ms: p99 };
+    return {
+      median: 1000 / med,
+      low1: 1000 / p99,
+      frames: n,
+      p99ms: p99,
+      workMedianMs: work[Math.floor(n / 2)],
+      workP99Ms: work[Math.min(n - 1, Math.floor(n * 0.99))],
+    };
   },
 };
 
