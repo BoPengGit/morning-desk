@@ -11,6 +11,8 @@ export async function launch({ video } = {}) {
   });
   const context = await browser.newContext({
     viewport: { width: 1600, height: 900 },
+    // MD_TZ sets the emulated headset's local time zone (the clock tile), e.g. Asia/Kolkata for a morning capture.
+    ...(process.env.MD_TZ ? { timezoneId: process.env.MD_TZ } : {}),
     ...(video ? { recordVideo: { dir: video, size: { width: 1600, height: 900 } } } : {}),
   });
   const page = await context.newPage();
